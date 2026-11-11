@@ -37,6 +37,15 @@ const baseUrl = (process.env.IMAGE_API_BASE_URL ?? gen.baseUrl ?? "").replace(/\
 const model = flag("--model") ?? process.env.IMAGE_MODEL ?? gen.model ?? "gpt-image-2";
 const defaultSize = flag("--size") ?? process.env.IMAGE_SIZE ?? gen.size ?? "1152x2048";
 const concurrency = Number(flag("--concurrency") ?? process.env.IMAGE_CONCURRENCY ?? gen.concurrency ?? 5);
+// Optional provider parameters (see .env.example). When an aspect ratio is set, the
+// tier + ratio pair replaces the pixel size field.
+const sizeTier = process.env.IMAGE_SIZE_TIER ?? gen.sizeTier;
+const aspectRatio = process.env.IMAGE_ASPECT_RATIO ?? gen.aspectRatio;
+const quality = process.env.IMAGE_QUALITY ?? gen.quality;
+const sizeFields = (job) => ({
+  ...(aspectRatio ? { aspect_ratio: job.aspectRatio ?? aspectRatio, ...(sizeTier ? { size_tier: sizeTier } : {}) } : { size: job.size ?? defaultSize }),
+  ...(quality ? { quality } : {}),
+});
 const defaultCandidates = Number(flag("--candidates") ?? process.env.IMAGE_CANDIDATES ?? gen.candidates ?? 1);
 const retries = Number(gen.retries ?? 3);
 const dryRun = args.includes("--dry-run");
@@ -96,7 +105,7 @@ async function requestImage(job) {
     const form = new FormData();
     form.append("model", model);
     form.append("prompt", job.prompt);
-    form.append("size", job.size ?? defaultSize);
+    for (const [key, value] of Object.entries(sizeFields(job))) form.append(key, String(value));
     form.append("n", "1");
     const field = references.length > 1 ? "image[]" : "image";
     for (const file of references) form.append(field, new Blob([fs.readFileSync(file)], { type: /\.png$/i.test(file) ? "image/png" : "image/jpeg" }), path.basename(file));
@@ -105,7 +114,7 @@ async function requestImage(job) {
     response = await fetch(`${baseUrl}/images/generations`, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt: job.prompt, size: job.size ?? defaultSize, n: 1 }),
+      body: JSON.stringify({ model, prompt: job.prompt, ...sizeFields(job), n: 1 }),
       signal: AbortSignal.timeout(300_000),
     });
   }

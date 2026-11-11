@@ -228,4 +228,5 @@ Regenerate identity-drifted sheets. Never conceal bad faces or sparse storyboard
 - `scripts/verify_final_video.sh`: probe the encoded MP4, scan black/silent intervals and loudness, extract named QA frames, and build a contact sheet.
 - `scripts/gen_images.mjs`: batch image generation through any OpenAI-compatible Images API with candidates, concurrency, retries, resume, and canvas normalisation.
 - `scripts/animate_shots.mjs`: local ComfyUI MiniMax-H3 image-to-video for every storyboard scene, multi-instance, resumable; supports generated dialogue and ambience.
+- `scripts/build_drama_timeline.mjs`: short-drama mode. Turns an authored `SHOTS.json` into image jobs, a global storyboard, and per-episode `episodes/epNN/` render inputs with caption timing (dialogue and caption-only lines).
 - `scripts/lib/env.mjs`: `.env` loading and the shared worker pool.

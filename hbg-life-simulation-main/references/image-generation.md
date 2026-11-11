@@ -15,6 +15,14 @@ Use any OpenAI-compatible Images API through `scripts/gen_images.mjs`. Configura
 
 Fall back to the built-in `imagegen` tool only when no API is configured. Never write the endpoint, key, or any token into the project, prompts, logs, `PROMPTS.md`, or a report.
 
+## Reference images
+
+A job may carry `references` (project-relative paths). The script then calls `/images/edits` as multipart, sending one reference as `image` and several as `image[]` (up to 10 on the provider tested). Make one anchor image per hero, key prop, and main location first, then pass the relevant anchors to every scene that needs them, and restate the immutable traits in the prompt. A two-reference test (hero + courtyard) kept the face, hairstyle, and costume and merged the background correctly.
+
+## Size and ratio
+
+Some providers prefer `aspect_ratio` (and `size_tier`) over a pixel size. Set `IMAGE_ASPECT_RATIO=9:16` to send the ratio instead of `size`; add `IMAGE_SIZE_TIER` only if the model offers that tier (the model tested only had 1k and rejected `2k`).
+
 ## Size
 
 Providers often deliver a nearby size instead of the requested one. One provider tested with portrait requests returned about 941×1672 for `1152x2048`, `1080x1920`, and `864x1536`, and 948×1659 for `1024x1792`. Request the exact target aspect ratio (9:16 → `1152x2048`) and let the script scale and crop to the canvas. Do not trust the requested size as the delivered size.

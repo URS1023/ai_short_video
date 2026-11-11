@@ -74,7 +74,12 @@ function buildPrompt(scene) {
   const parts = [];
   parts.push((scene.motionPrompt ?? scene.visual ?? "Subtle natural motion. Slow camera push-in.").trim());
   const text = scene.dialogue?.text?.trim();
-  if (text) {
+  if (text && scene.dialogue?.offscreen) {
+    // Narration: a voice that is not a person on screen. Nobody in frame speaks.
+    const voice = scene.voice ?? scene.dialogue?.voice ?? "a calm deep adult male narrator voice";
+    parts.push(`Nobody on screen speaks and every visible mouth stays closed.`);
+    parts.push(`Audio: ${voice} narrating off-screen in Mandarin Chinese: "${text}"; ${scene.ambience ?? "faint ambience"}; no music, no singing, no subtitles or generated text.`);
+  } else if (text) {
     const voice = scene.voice ?? scene.dialogue?.voice ?? "a clear natural voice";
     parts.push(`The speaker's mouth moves in sync with the line, saying in Mandarin Chinese: "${text}".`);
     parts.push(`Audio: ${voice} clearly speaking the line in Mandarin Chinese, ${scene.ambience ?? "faint room tone"}; no music, no singing, no subtitles or generated text.`);

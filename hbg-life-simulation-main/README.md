@@ -39,6 +39,9 @@ node scripts/gen_images.mjs PROJECT_DIR
 node scripts/animate_shots.mjs PROJECT_DIR --dry-run
 node scripts/animate_shots.mjs PROJECT_DIR
 
+# 3.5 短剧模式:把分镜表 SHOTS.json 展开成生图任务、故事板和每集的字幕时间轴
+node scripts/build_drama_timeline.mjs PROJECT_DIR
+
 # 4. 合成成片(有视频片段用片段,没有则推拉)
 node scripts/render_streaming_ffmpeg.mjs PROJECT_DIR renders/ep01-v1.mp4
 scripts/verify_final_video.sh renders/ep01-v1.mp4 qa/ep01 1:open 30:mid
@@ -73,6 +76,10 @@ scripts/verify_final_video.sh renders/ep01-v1.mp4 qa/ep01 1:open 30:mid
 ```
 
 有 `dialogue` 的镜头保留模型生成的人声和口型;没有台词的镜头会要求"只有环境音",否则模型容易自己加背景歌声。详见 [references/motion-and-audio.md](references/motion-and-audio.md)。
+
+## 角色一致性(参考图)
+
+生图任务可带参考图:`{"id":"s001","prompt":"...","references":["assets/anchors/hero.png","assets/anchors/yard.png"]}`。有参考图时走 `/images/edits`(多张用 `image[]`),主角的脸、服装和场景可以跨镜头保持一致。建议先为主角、关键道具和主场景各做一张设定图。
 
 ## 声音一致性
 
