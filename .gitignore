@@ -1,0 +1,20 @@
+# secrets and local config
+.env
+.env.*
+!.env.example
+
+# source text (copyrighted novel) and scratch
+*.txt
+_smoke/
+
+# generated media and work files (any project)
+**/assets/generated/
+**/renders/
+**/qa/
+*.mp4
+*.mov
+*.webm
+*.wav
+*.m4a
+*.mp3
+.DS_Store

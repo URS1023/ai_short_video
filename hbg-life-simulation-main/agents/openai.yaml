@@ -1,0 +1,4 @@
+interface:
+  display_name: "HBG 图转动态短剧"
+  short_description: "长文本转短剧:统一角色、外部 API 批量生图、本地 ComfyUI 图转视频与口型对白、可配置尺寸/模型/配音"
+  default_prompt: "使用 $hbg-life-simulation 将这段中文故事制作成视频:先确认 .env 中的生图 API 和 ComfyUI 地址,按配置的画幅锁定角色 IP,批量生图后用本地 H3 转成动态镜头,最后合成并检查成片。"
