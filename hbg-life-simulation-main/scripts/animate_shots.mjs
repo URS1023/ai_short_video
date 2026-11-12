@@ -9,7 +9,9 @@
 //
 // Scene fields used (STORYBOARD.json or --storyboard):
 //   id, asset, duration (seconds; from real timing), motionPrompt (what moves),
-//   dialogue: { speaker?, text }, voice (voice description), ambience, keepAudio
+//   dialogue: { speaker?, text }, voice (voice description), ambience, keepAudio,
+//   audioAsset (optional wav anchored as the soundtrack; lips follow it),
+//   lastAsset (optional last keyframe: the clip moves from asset to lastAsset), retry (changes the seed)
 //
 // Configuration comes from PROJECT_SPEC.video, overridable by env / .env:
 //   COMFY_URLS (comma list) or COMFY_URL [+ COMFY_URL_GPU1]; one job per instance runs at a time.
@@ -116,15 +118,15 @@ async function jsonFetch(url, options, label) {
   return JSON.parse(text);
 }
 
-async function uploadImage(base, file) {
+async function uploadImage(base, file, ext = "png", type = "image/png") {
   const form = new FormData();
-  const name = `hbg_${crypto.randomBytes(6).toString("hex")}.png`;
-  form.append("image", new Blob([fs.readFileSync(file)], { type: "image/png" }), name);
+  const name = `hbg_${crypto.randomBytes(6).toString("hex")}.${ext}`;
+  form.append("image", new Blob([fs.readFileSync(file)], { type }), name);
   const result = await jsonFetch(`${base}/upload/image`, { method: "POST", body: form }, "upload");
   return result.name;
 }
 
-function buildGraph(imageName, plan) {
+function buildGraph(imageName, plan, lastImageName = null, audioName = null) {
   const g = {
     1: { class_type: "UNETLoader", inputs: { unet_name: cfg.unet, weight_dtype: "default" } },
     2: { class_type: "CLIPLoader", inputs: { clip_name: cfg.clip, type: "minimax", device: "default" } },
@@ -140,8 +142,20 @@ function buildGraph(imageName, plan) {
     modelRef = ["20", 0];
   }
   g[6] = { class_type: "MiniMaxH3ImageToVideo", inputs: { clip: ["2", 0], vae: ["3", 0], prompt: plan.prompt, width: cfg.width, height: cfg.height, length: plan.frames, first_frame: ["5", 0] } };
+  // Optional last keyframe: the clip then moves from the first image to this one (first/last-frame mode).
+  if (lastImageName) {
+    g[21] = { class_type: "LoadImage", inputs: { image: lastImageName } };
+    g[6].inputs.last_frame = ["21", 0];
+  }
+  // Optional fixed soundtrack (e.g. a TTS line in a locked voice): anchored at frame 0 so lips follow it.
+  let condRef = ["6", 0];
+  if (audioName) {
+    g[22] = { class_type: "LoadAudio", inputs: { audio: audioName } };
+    g[23] = { class_type: "MiniMaxH3AddGuide", inputs: { positive: ["6", 0], latent: ["6", 1], frame_idx: 0, audio_vae: ["4", 0], audio: ["22", 0] } };
+    condRef = ["23", 0];
+  }
   g[9] = { class_type: "BasicScheduler", inputs: { model: modelRef, scheduler: cfg.scheduler, steps: cfg.steps, denoise: 1.0 } };
-  g[10] = { class_type: "BasicGuider", inputs: { model: modelRef, conditioning: ["6", 0] } };
+  g[10] = { class_type: "BasicGuider", inputs: { model: modelRef, conditioning: condRef } };
   g[11] = { class_type: "SamplerCustomAdvanced", inputs: { noise: ["8", 0], guider: ["10", 0], sampler: ["7", 0], sigmas: ["9", 0], latent_image: ["6", 1] } };
   g[12] = { class_type: "VAEDecode", inputs: { samples: ["11", 0], vae: ["3", 0] } };
   g[13] = { class_type: "VAEDecodeAudio", inputs: { samples: ["11", 0], vae: ["4", 0] } };
@@ -154,7 +168,19 @@ async function renderClip(base, item) {
   const source = path.resolve(projectDir, item.scene.asset);
   if (!fs.existsSync(source)) throw new Error(`missing image: ${source}`);
   const imageName = await uploadImage(base, source);
-  const queued = await jsonFetch(`${base}/prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: buildGraph(imageName, item), client_id: crypto.randomUUID() }) }, "queue");
+  let lastImageName = null;
+  if (item.scene.lastAsset) {
+    const lastSource = path.resolve(projectDir, item.scene.lastAsset);
+    if (!fs.existsSync(lastSource)) throw new Error(`missing last-frame image: ${lastSource}`);
+    lastImageName = await uploadImage(base, lastSource);
+  }
+  let audioName = null;
+  if (item.scene.audioAsset) {
+    const audioSource = path.resolve(projectDir, item.scene.audioAsset);
+    if (!fs.existsSync(audioSource)) throw new Error(`missing audio: ${audioSource}`);
+    audioName = await uploadImage(base, audioSource, "wav", "audio/wav");
+  }
+  const queued = await jsonFetch(`${base}/prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: buildGraph(imageName, item, lastImageName, audioName), client_id: crypto.randomUUID() }) }, "queue");
   const promptId = queued.prompt_id;
   const deadline = Date.now() + cfg.timeoutMs;
   while (Date.now() < deadline) {
