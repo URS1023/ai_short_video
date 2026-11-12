@@ -94,7 +94,8 @@ function frameCount(seconds) {
   frames += (5 - (frames % 17) + 17) % 17;
   return frames;
 }
-const seedFor = (id) => parseInt(crypto.createHash("sha1").update(id).digest("hex").slice(0, 8), 16);
+// scene.retry (0,1,2...) changes the seed to regenerate a clip with the same prompt.
+const seedFor = (id, retry = 0) => parseInt(crypto.createHash("sha1").update(retry ? `${id}#${retry}` : id).digest("hex").slice(0, 8), 16);
 
 const plan = scenes.filter((s) => s.asset && (only.size === 0 || only.has(s.id))).slice(0, limit).map((scene) => {
   const seconds = Math.min(cfg.maxSeconds, Math.max(cfg.minSeconds, Number(scene.duration ?? cfg.minSeconds) + cfg.padSeconds));
@@ -131,7 +132,7 @@ function buildGraph(imageName, plan) {
     4: { class_type: "VAELoader", inputs: { vae_name: cfg.audioVae } },
     5: { class_type: "LoadImage", inputs: { image: imageName } },
     7: { class_type: "KSamplerSelect", inputs: { sampler_name: cfg.sampler } },
-    8: { class_type: "RandomNoise", inputs: { noise_seed: seedFor(plan.scene.id) } },
+    8: { class_type: "RandomNoise", inputs: { noise_seed: seedFor(plan.scene.id, plan.scene.retry) } },
   };
   let modelRef = ["1", 0];
   if (cfg.lora) {

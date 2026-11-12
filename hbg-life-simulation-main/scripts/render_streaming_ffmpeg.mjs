@@ -256,7 +256,10 @@ if (openingEnabled) {
 }
 if (bgm) { const i = addInput(bgm); filters.push(`[${i}:a]atrim=0:${totalDuration},volume=${bgmVolume}[bgm]`); mixLabels.push("[bgm]"); }
 if (narration) { const i = addInput(narration); filters.push(`[${i}:a]adelay=${ms(bodyStart)}:all=1[narration]`); mixLabels.push("[narration]"); }
-filters.push(`${mixLabels.join("")}amix=inputs=${mixLabels.length}:duration=longest:normalize=0,atrim=0:${totalDuration}[a]`);
+// Loudness normalisation keeps the true peak below 0 dBFS and lands near streaming-platform loudness.
+// Set HBG_LOUDNORM=0 to keep the raw mix, or HBG_LOUDNORM_I / HBG_LOUDNORM_TP to change the target.
+const loudnorm = process.env.HBG_LOUDNORM === "0" ? "" : `,loudnorm=I=${process.env.HBG_LOUDNORM_I ?? -16}:TP=${process.env.HBG_LOUDNORM_TP ?? -1.5}:LRA=11,aresample=48000`;
+filters.push(`${mixLabels.join("")}amix=inputs=${mixLabels.length}:duration=longest:normalize=0${loudnorm},atrim=0:${totalDuration}[a]`);
 
 run("ffmpeg", [
   "-hide_banner", "-loglevel", "info", "-y", ...inputs,
